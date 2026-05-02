@@ -1,0 +1,10 @@
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: "*.{ts,tsx,js,json}"
+      run: bunx biome check --write {staged_files}
+      stage_fixed: true
+    typecheck:
+      glob: "*.ts"
+      run: bunx tsc --noEmit

@@ -1,0 +1,23 @@
+name = "spontai-api"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+
+[observability]
+enabled = true
+
+[env.staging]
+name = "spontai-api-staging"
+
+[env.production]
+name = "spontai-api-production"
+
+# Routes — uncomment after DNS for spontai.com is configured.
+# [[env.staging.routes]]
+# pattern = "staging-api.spontai.com/*"
+# zone_name = "spontai.com"
+#
+# [[env.production.routes]]
+# pattern = "api.spontai.com/*"
+# zone_name = "spontai.com"
