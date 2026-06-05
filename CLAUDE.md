@@ -21,6 +21,7 @@ The Spontai iOS app lives in a SEPARATE repo and is out of scope for this codeba
 - Lint/format: Biome 2.4 (single tool — not eslint+prettier)
 - Git hooks: Lefthook
 - Auth: OAuth 2.1 + PKCE for end-user delegation; HS256-signed API keys for partners
+- JWT verification: `jose` (^5 or ^6 — let bun resolve)
 - Observability: Sentry (`@sentry/cloudflare`) + Cloudflare Workers Analytics
 - Backing data: existing Supabase Postgres in the iOS app's project (this repo is a read-only consumer, never writes)
 - Rate limiting: Cloudflare Rate Limiting + Upstash Redis
@@ -78,6 +79,26 @@ The Spontai iOS app lives in a SEPARATE repo and is out of scope for this codeba
 - `export default app` (NOT `export default { fetch: app.fetch }` — causes cryptic Vite/Hono errors)
 - Use `c.var.X` for typed context, never `c.set(...)` unless explicitly setting
 
+### Auth (Phase 2 onwards)
+
+- JWT signing keys carry `kid: "v1"` headers. `src/middleware/auth.ts` reads the secret via a `kid`-keyed map. To rotate: provision `HMAC_SIGNING_SECRET_V2`, register `v2`, switch the minter to sign with `v2`, then drop `v1` once all live tokens have expired (≤15 min for OAuth access; up to 365 days for partner API keys).
+- Two auth schemes are accepted: `Authorization: Bearer <jwt>` (OAuth access tokens, `kind: "oauth_access"`) and `Authorization: ApiKey <jwt>` (partner keys, `kind: "api_key"`). The wire scheme and the `kind` claim are cross-checked.
+- Partner API keys are restricted to scopes in `API_KEY_ALLOWED_SCOPES` (currently only `feed:read`). User-owned scopes (`trips:read`, etc.) are issuable only via OAuth.
+- Per-route enforcement uses `requireScope("X")` from `src/middleware/scope.ts`. Public routes apply no middleware; auth-required routes use `requireScope` (which runs verification + scope check in one pass).
+
+### Sentry (mandatory pattern)
+
+- Every external call (Supabase, Upstash, Google Places, JWKS, ...) MUST be wrapped in `withBreadcrumb(area, message, fn, data?)` from `src/middleware/sentry.ts`. This is the only sanctioned way to satisfy the Sentry pattern; a bare `addBreadcrumb` + try/catch is a code-review issue.
+- `area` is a stable identifier for the subsystem (e.g., `"supabase_trips"`, `"upstash_token_lookup"`). It becomes the Sentry tag on captured exceptions.
+
+### Test-only code
+
+- Production code paths MUST NOT import from `src/lib/test-tokens.ts` or `tests/_helpers/*`. Test-only code stays test-only. The mint helpers are dev/test fixtures; real OAuth tokens come from `/oauth/token` (Phase 5+).
+
+### Hono export rule (clarification)
+
+- `export default Sentry.withSentry(...)` is the canonical wrapper and is allowed. The "do not hand-craft `{ fetch: app.fetch }`" rule applies only to manual ExportedHandler construction, not to library wrappers that return a properly-shaped handler.
+
 ## Out of scope for v1
 
 - Write endpoints (POST/PUT/DELETE) — read-only API for entire launch
@@ -88,9 +109,10 @@ The Spontai iOS app lives in a SEPARATE repo and is out of scope for this codeba
 ## Phase plan
 
 1. ✅ Scaffold (this phase — empty repo to first commit)
-2. Auth foundation: OAuth 2.1 + API key middleware, scope enforcement, Upstash token store
+2. ✅ Auth foundation (verifiers + middleware + Sentry context only — issuer endpoints deferred)
 3. Resource endpoints: `/v1/health`, `/v1/me`, taste-signature, visited-countries, visited-places, trips, places, public feed, recommendations
 4. OpenAPI 3.1 spec + Scalar docs at `/docs`, semantic metadata on every operation
+<!-- TODO: decide when Phase 5 starts whether OAuth issuer + consent UI is its own phase or folded in. -->
 5. MCP server with 9 tools (per the implementation plan doc)
 6. Well-known files served at `spontai.com` root: `llms.txt`, `robots.txt`, `sitemap.xml`, `.well-known/mcp.json`, `.well-known/mcp/server-card.json`, `.well-known/agent-skills/index.json` (NOTE: these go on the marketing site, not this API repo)
 7. SDK generation (Speakeasy) + ora.run submission + MCP registry submission
