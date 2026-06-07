@@ -1,0 +1,5 @@
+# Test-only config. The preload installs a global @sentry/cloudflare stub before any
+# test file imports src/index, so the real withSentry() never instruments the shared
+# Hono app during tests (which would otherwise make the suite order-dependent).
+[test]
+preload = ["./tests/_helpers/sentry-mock.ts"]

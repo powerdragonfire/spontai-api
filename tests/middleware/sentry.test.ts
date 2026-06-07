@@ -1,20 +1,9 @@
-import { describe, expect, it, mock } from "bun:test";
-
-const breadcrumbs: Array<Record<string, unknown>> = [];
-const captures: Array<{ error: unknown; tags: Record<string, string> }> = [];
-
-mock.module("@sentry/cloudflare", () => ({
-  addBreadcrumb: (b: Record<string, unknown>) => breadcrumbs.push(b),
-  captureException: (error: unknown, opts: { tags: Record<string, string> }) =>
-    captures.push({ error, tags: opts.tags }),
-  getCurrentScope: () => ({
-    setTags: () => undefined,
-    setUser: () => undefined,
-  }),
-  withSentry: <T>(_optsFn: unknown, app: T) => app,
-}));
-
+import { describe, expect, it } from "bun:test";
 import { withBreadcrumb } from "../../src/middleware/sentry";
+// The @sentry/cloudflare stub + these spy arrays are installed globally via the
+// bunfig.toml [test].preload (tests/_helpers/sentry-mock.ts) so the real withSentry
+// never instruments the shared app. We just assert against the recorded calls here.
+import { breadcrumbs, captures } from "../_helpers/sentry-mock";
 
 describe("withBreadcrumb", () => {
   it("returns the function's result and adds a breadcrumb on success", async () => {

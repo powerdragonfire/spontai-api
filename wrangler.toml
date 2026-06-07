@@ -13,6 +13,11 @@ name = "spontai-api-staging"
 [env.production]
 name = "spontai-api-production"
 
+[vars]
+AWS_REGION = "eu-west-2"
+HIDDEN_GEMS_TABLE = "spontai-hidden-gems"
+HIDDEN_GEMS_STORE = "dynamo"
+
 # Routes — uncomment after DNS for spontai.com is configured.
 # [[env.staging.routes]]
 # pattern = "staging-api.spontai.com/*"

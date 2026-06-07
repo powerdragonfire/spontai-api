@@ -6,3 +6,12 @@ UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 HMAC_SIGNING_SECRET=
 GOOGLE_PLACES_API_KEY=
+# Copy this file to .dev.vars for local development.
+# Do not commit .dev.vars.
+
+AWS_ACCESS_KEY_ID="paste-runtime-access-key-id-here"
+AWS_SECRET_ACCESS_KEY="paste-runtime-secret-access-key-here"
+
+AWS_REGION="eu-west-2"
+HIDDEN_GEMS_TABLE="spontai-hidden-gems"
+HIDDEN_GEMS_STORE="dynamo"

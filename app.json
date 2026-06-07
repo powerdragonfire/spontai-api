@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "7b355683-e6aa-4926-9320-040d5965dfec"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.mikkyappdev.spontaiapi",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
