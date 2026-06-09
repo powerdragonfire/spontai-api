@@ -122,6 +122,38 @@ function itemToHiddenGemRecord(item?: DynamoItem): HiddenGemRecord | null {
 }
 
 /**
+ * Reconstruct the HiddenGemRecords for one page of a city Query, applying the
+ * GSI-projection tripwire.
+ *
+ * Why this exists: queryByCity reads from GSI1. If GSI1 was created with a
+ * projection that omits the `record` attribute (e.g. KEYS_ONLY), every Query
+ * still SUCCEEDS and returns items — but itemToHiddenGemRecord can rebuild none
+ * of them, so /search would surface a silent, empty 200. We would much rather
+ * fail loudly so the misconfiguration is caught immediately.
+ */
+export function reconstructCityItems(items: DynamoItem[]): HiddenGemRecord[] {
+  const records: HiddenGemRecord[] = [];
+
+  for (const item of items) {
+    const record = itemToHiddenGemRecord(item);
+    if (record) records.push(record);
+  }
+
+  // GSI-projection tripwire (systemic): items came back but none reconstructed.
+  // That's the fingerprint of a KEYS_ONLY/partial GSI1 projection — one bad row
+  // wouldn't wipe the whole page, but a missing `record` attribute would. Fail
+  // loudly so the misconfiguration can't masquerade as an empty city.
+  if (items.length > 0 && records.length === 0) {
+    throw new Error(
+      `GSI1 returned ${items.length} item(s) but none were reconstructable — ` +
+        "check the GSI1 projection includes the `record` attribute (expected projection: ALL).",
+    );
+  }
+
+  return records;
+}
+
+/**
  * Production DynamoDB-backed repository.
  *
  * Single-table key design:
@@ -217,10 +249,7 @@ export class DynamoHiddenGemsRepository implements HiddenGemsRepository {
         ExclusiveStartKey: lastEvaluatedKey,
       });
 
-      for (const item of result.Items ?? []) {
-        const record = itemToHiddenGemRecord(item);
-        if (record) records.push(record);
-      }
+      records.push(...reconstructCityItems(result.Items ?? []));
 
       lastEvaluatedKey = result.LastEvaluatedKey;
     } while (lastEvaluatedKey);

@@ -24,6 +24,7 @@ The Spontai iOS app lives in a SEPARATE repo and is out of scope for this codeba
 - JWT verification: `jose` (^5 or ^6 — let bun resolve)
 - Observability: Sentry (`@sentry/cloudflare`) + Cloudflare Workers Analytics
 - Backing data: existing Supabase Postgres in the iOS app's project (this repo is a read-only consumer, never writes)
+- Hidden-gems store: AWS DynamoDB (`spontai-hidden-gems`, region `eu-west-2`) via `aws4fetch`. Single-table design (`PK=PLACE#<id>`, `SK=RECORD`; city `GSI1`). This is the ONLY AWS dependency — it does not reopen the rejected full-stack AWS migration (see memory `project_stack_decision`); it's a scoped store for the hidden-gems feature. Access uses TWO separate IAM identities: a **read-only runtime key** (`GetItem`/`BatchGetItem`/`Query` only — no `Scan`, no writes) held as Worker secrets, and a **write-capable seeder key** (`BatchWriteItem`) used ONLY locally by `src/scripts/seed-dynamo.ts`. Never deploy the seeder key. `GSI1` MUST use projection `ALL` (the `record` attribute is required to reconstruct records; `reconstructCityItems` throws loudly if a query returns items but none reconstruct). Repo selection is via `HIDDEN_GEMS_STORE` (`dynamo` = DynamoDB, unset/`memory` = hermetic in-memory seed for tests/local).
 - Rate limiting: Cloudflare Rate Limiting + Upstash Redis
 
 ## Code conventions — FOLLOW STRICTLY

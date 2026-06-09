@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { Hono } from "hono";
 import { sentryContext } from "@/middleware/sentry";
+import { health } from "@/routes/health";
 import { hiddenGems } from "@/routes/hidden-gems";
 import type { AppEnv } from "@/types/hono";
 
@@ -15,6 +16,7 @@ app.get("/", (c) =>
   }),
 );
 
+app.route("/v1/health", health);
 app.route("/v1/hidden-gems", hiddenGems);
 
 export { app };
