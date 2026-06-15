@@ -4,9 +4,9 @@ Durable context for any Claude Code session in this repo. Read this before doing
 
 ## What this is
 
-Spontai's public API + MCP server. B2A (business-to-agent) traveler memory layer. The data exposed: visited countries, visited places, trip journals, taste signatures, and similar-destinations recommendations. Free during launch. Goal: A on ora.run agent readiness ranking and listing in the official MCP registry.
+Spontai API — an agentic hidden-gems intelligence server. B2A (business-to-agent) scored discovery layer for any user, not tied to the Spontai iOS app. The data exposed: explainable hidden-gem scores (social velocity + localness + saveIntent + commentIntent − saturationPenalty − touristTrapPenalty − mainstreamCoveragePenalty − mapsMaturityPenalty), trend stages (undiscovered → early_rising → peaking → saturated → declining), real-time visitability windows, and agent-native place recommendations. Signal source: TikTok/Instagram content velocity ingested via the `last30days` skill. Free during launch. Goal: A on ora.run agent readiness ranking and listing in the official MCP registry.
 
-The Spontai iOS app lives in a SEPARATE repo and is out of scope for this codebase.
+The Spontai iOS app (separate repo) reads traveler profiles (visited places, trips, taste signatures) from Supabase. That data is out of scope for this API. This API serves any user or AI agent that wants discovery intelligence.
 
 ## Stack (locked May 2026)
 
@@ -25,6 +25,7 @@ The Spontai iOS app lives in a SEPARATE repo and is out of scope for this codeba
 - Observability: Sentry (`@sentry/cloudflare`) + Cloudflare Workers Analytics
 - Backing data: existing Supabase Postgres in the iOS app's project (this repo is a read-only consumer, never writes)
 - Hidden-gems store: AWS DynamoDB (`spontai-hidden-gems`, region `eu-west-2`) via `aws4fetch`. Single-table design (`PK=PLACE#<id>`, `SK=RECORD`; city `GSI1`). This is the ONLY AWS dependency — it does not reopen the rejected full-stack AWS migration (see memory `project_stack_decision`); it's a scoped store for the hidden-gems feature. Access uses TWO separate IAM identities: a **read-only runtime key** (`GetItem`/`BatchGetItem`/`Query` only — no `Scan`, no writes) held as Worker secrets, and a **write-capable seeder key** (`BatchWriteItem`) used ONLY locally by `src/scripts/seed-dynamo.ts`. Never deploy the seeder key. `GSI1` MUST use projection `ALL` (the `record` attribute is required to reconstruct records; `reconstructCityItems` throws loudly if a query returns items but none reconstruct). Repo selection is via `HIDDEN_GEMS_STORE` (`dynamo` = DynamoDB, unset/`memory` = hermetic in-memory seed for tests/local).
+- Ingestion: `last30days` skill runs a research brief (markdown) on a city topic → `src/scripts/ingest-last30days.ts` extracts place candidates via `TextContentExtractor`, estimates social signals, builds `HiddenGemRecord`s, writes to DynamoDB using the seeder key. City centroid used for lat/lng until Google Places integration (Phase 3b). Run-id stored in `sourceRunId` on each candidate for traceability.
 - Rate limiting: Cloudflare Rate Limiting + Upstash Redis
 
 ## Code conventions — FOLLOW STRICTLY
@@ -111,7 +112,7 @@ The Spontai iOS app lives in a SEPARATE repo and is out of scope for this codeba
 
 1. ✅ Scaffold (this phase — empty repo to first commit)
 2. ✅ Auth foundation (verifiers + middleware + Sentry context only — issuer endpoints deferred)
-3. Resource endpoints: `/v1/health`, `/v1/me`, taste-signature, visited-countries, visited-places, trips, places, public feed, recommendations
+3. ✅ Hidden-gems endpoints: `/v1/health`, `/v1/hidden-gems/search`, `/trend/:id`, `/recommend-now`, `/resolve-social-post` — plus ingestion pipeline (`ingest-last30days.ts`) and DynamoDB seeder with real scores
 4. OpenAPI 3.1 spec + Scalar docs at `/docs`, semantic metadata on every operation
 <!-- TODO: decide when Phase 5 starts whether OAuth issuer + consent UI is its own phase or folded in. -->
 5. MCP server with 9 tools (per the implementation plan doc)
