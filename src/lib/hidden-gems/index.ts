@@ -7,7 +7,7 @@ import type { ContentExtractionProvider } from "@/lib/hidden-gems/providers/type
 import {
   createHiddenGemsRepository,
   type HiddenGemsRepository,
-} from "@/lib/hidden-gems/repository-old";
+} from "@/lib/hidden-gems/repository";
 import {
   haversineKm,
   isSuppressed,
