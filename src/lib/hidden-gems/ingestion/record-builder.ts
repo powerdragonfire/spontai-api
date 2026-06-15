@@ -15,7 +15,7 @@ function placeIdFromCandidate(candidate: HiddenGemCandidate): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
-    .slice(0, 20);
+    .slice(0, 40);
   const cityPrefix = candidate.city.toLowerCase().slice(0, 3);
   return `${cityPrefix}_ing_${slug}`;
 }
