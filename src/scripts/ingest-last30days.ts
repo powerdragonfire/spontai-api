@@ -46,9 +46,12 @@ if (!dryRun && (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY)) {
   );
 }
 
+type DynamoPutRequest = { PutRequest: { Item: Record<string, DynamoAttribute> } };
+
 async function batchWrite(
   client: AwsClient,
   items: Record<string, DynamoAttribute>[],
+  isRetry = false,
 ): Promise<void> {
   const response = await client.fetch(`https://dynamodb.${AWS_REGION}.amazonaws.com/`, {
     method: "POST",
@@ -69,9 +72,19 @@ async function batchWrite(
   }
 
   const result = (await response.json()) as Record<string, unknown>;
-  const unprocessedItems = result["UnprocessedItems"] as Record<string, unknown> | undefined;
-  if (unprocessedItems && Object.keys(unprocessedItems).length > 0) {
-    throw new Error(`DynamoDB returned UnprocessedItems: ${JSON.stringify(unprocessedItems)}`);
+  const failed = (result.UnprocessedItems as Record<string, DynamoPutRequest[]> | undefined)?.[
+    HIDDEN_GEMS_TABLE
+  ];
+  if (failed && failed.length > 0) {
+    if (isRetry) {
+      throw new Error(`DynamoDB returned UnprocessedItems after retry: ${JSON.stringify(failed)}`);
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+    await batchWrite(
+      client,
+      failed.map((r) => r.PutRequest.Item),
+      true,
+    );
   }
 }
 
